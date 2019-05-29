@@ -3,7 +3,8 @@ const app = express();
 const bodyParser = require('body-parser');
 const port = 8000;
 const userRoute = require('./apis/user.js');
-const productRoute = require('./apis/products.js');
+const groupRoute = require('./apis/groups.js');
+const messageRoute = require('./apis/messages')
 const models = require('./models');
 app.use(bodyParser.urlencoded({extended : false}));
 app.use(bodyParser.json());
@@ -23,9 +24,10 @@ models
 });
     //load route
 userRoute.load(app);
-productRoute.load(app);
+groupRoute.load(app);
+messageRoute.load(app);
 app.use(function (err, req, res, next) {
-    //  console.log(JSON.stringify(err, null, 2));
+    //   console.log(JSON.stringify(err, null, 2));
     if (Array.isArray(err.errors)) {
         const messagese = err.errors.map(function(item) {
             return item.message;

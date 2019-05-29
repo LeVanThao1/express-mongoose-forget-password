@@ -7,7 +7,7 @@ const sign = (payload, options = {}) => {
     options = Object.assign(
         {
             algorithm: 'RS256',
-			expiresIn: 60 * 60
+			expiresIn: 60*60 
         },
         options
     );

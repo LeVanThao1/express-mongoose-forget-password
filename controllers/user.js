@@ -7,7 +7,7 @@ const randomstring = require('randomstring');
 const deleteUser = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const userDelete = await User.findOneAndDelete({ _id: id }).lean().select('_id username');
+        const userDelete = await User.findOneAndUpdate({ _id: id, deleteAt: undefined }, {$set: { deleteAt: new Date() } }).lean().select('_id username');
         if (!userDelete) {
             return next(new Error('USER_NOT_FOUND'));
         }
@@ -55,14 +55,16 @@ const createUser = async (req, res, next) => {
         const {
             username,
             password,
-            email
+            email,
+            gender
         } = req.body;
         const salt = bcrypt.genSaltSync(2);
         const hashPassword = bcrypt.hashSync(password, salt);
         const newUser = new User({
             username,
             password : hashPassword,
-            email
+            email,
+            gender
         });
         const creatUser = await newUser.save();
         return res.status(200).json({
@@ -74,8 +76,16 @@ const createUser = async (req, res, next) => {
     };
 }
 const getListUser = async (req, res, next) => {
-    try {     
-        const users = await User.find().lean().select('username');
+    try {
+        let { page, limit } = req.query;
+        page = page || 1;
+        limit = limit || 5;
+        const skip = (page - 1)  * limit;     
+        const users = await User.find({ deleteAt: undefined })
+            .lean()
+            .select('-password')
+            .skip(+skip)
+            .limit(+limit);
         if (!users) {
             return next(new Error('NO_DATA'));
         }
@@ -91,7 +101,7 @@ const getListUser = async (req, res, next) => {
 const getUser = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const user = await User.findOne({_id: id}).select('username').lean();        
+        const user = await User.findOne({ _id: id, deleteAt: undefined }).select('-password').lean();        
         if (!user) {
             return next(new Error('USER_NOT_FOUND'));
         }
@@ -111,7 +121,8 @@ const updateUser = async (req, res, next) => {
         const {
             username,
             password,
-            email
+            email,
+            gender
         } = req.body;
         
         const salt = bcrypt.genSaltSync(2);
@@ -119,11 +130,12 @@ const updateUser = async (req, res, next) => {
         const newValues = {
             username,
             password: hashPassword,
-            email
+            email,
+            gender
         }
         lodash.omitBy(newValues, lodash.isNull);
         const updateInfo = { $set: newValues };
-        const userUpdate = await User.findOneAndUpdate({_id: id}, updateInfo, {
+        const userUpdate = await User.findOneAndUpdate({_id: id, deleteAt: undefined }, updateInfo, {
             new: true
         }).lean();
         if (!userUpdate) {
@@ -150,16 +162,15 @@ const forgetPassword = async (req, res, next) => {
             length: 6,
             charset: 'alphanumeric',
             capitalization: 'uppercase'
-          });
+        });
         await sendMail(email, code);
         await User.updateOne({ email }, { verifyCode: code, verifyCodeExpiredAt: new Date() });
         return res.status(200).json({
             message: 'We sent you a mail'
-        })
+        });
     } catch (e) {
         return next(new Error(e));
     }
-    
 };
 
 const resetPassword = async (req, res, next) => {
@@ -169,11 +180,11 @@ const resetPassword = async (req, res, next) => {
         if (!user) {
             return next(new Error('EMAIL_NOT_INVALID'));
         }
-        if (code !== user.verifyCode) {
-            return next(new Error('CODE_NOT_INVALID'));
-        }
         if (user.verifyCode === null) {
             return next(new Error('YOU_HAVE_NOT_REQUESTED_FORGET_PASSWORD')); 
+        }
+        if (code !== user.verifyCode) {
+            return next(new Error('CODE_NOT_INVALID'));
         }
         if (new Date() - user.verifyCodeExpiredAt > 1000*60*5) {
             return next(new Error('CODE_EXPIRED'));       
@@ -186,10 +197,8 @@ const resetPassword = async (req, res, next) => {
         });
     } catch (error) {
         return next(error);
-    }
-    
+    } 
 };
-
 module.exports = {
     deleteUser,
     createUser,

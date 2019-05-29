@@ -16,12 +16,17 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    verifyCode: {
-        type: String
+    gender: {
+        type: String,
+        enum: ['Male', 'Female', 'Other'],
+        required: true
     },
-    verifyCodeExpiredAt: {
+    geoPossition: {
+        type: [Number]
+    },
+    deleteAt: {
         type: Date
-    } 
-});
+    }   
+}, { timestamps: true });
 const User = mongoose.model('User', userSchema);
 module.exports = User;
